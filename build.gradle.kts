@@ -14,13 +14,17 @@ repositories {
 }
 
 val interopDir = file("src/nativeInterop")
-fun libraryPath(target: String) = interopDir.resolve("lib/$target")
+val interopTargetDirectoryNames = mapOf(
+    "androidNativeArm64" to "androidArm64"
+)
+fun libraryPath(target: String) = interopDir.resolve("lib/${interopTargetDirectoryNames[target] ?: target}")
 
 kotlin {
     jvm()
     mingwX64()
     linuxX64()
     linuxArm64()
+    androidNativeArm64()
     macosX64()
     macosArm64()
 

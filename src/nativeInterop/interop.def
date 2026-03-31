@@ -7,6 +7,9 @@ linkerOpts.mingw = -lstdc++ -lws2_32
 staticLibraries.linux = libavformat.a libavcodec.a libavutil.a libswresample.a libswscale.a libz.a libLagrangeCodec.a
 linkerOpts.linux = -lstdc++ -lm -ldl -lpthread
 
+staticLibraries.android_arm64 = libavformat.a libavcodec.a libavutil.a libswresample.a libswscale.a libz.a libLagrangeCodec.a
+linkerOpts.android_arm64 = -lm
+
 staticLibraries.osx = libavformat.a libavcodec.a libavutil.a libswresample.a libswscale.a libz.a libLagrangeCodec.a
 linkerOpts.osx = -lc++
 
