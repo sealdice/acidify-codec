@@ -6,8 +6,18 @@ plugins {
     id("com.vanniktech.maven.publish") version "0.36.0"
 }
 
-group = "org.ntqqrev"
-version = "0.1.0"
+fun env(name: String) = providers.environmentVariable(name).orNull
+
+val releaseGroup = "org.ntqqrev"
+val releaseVersion = "0.1.0"
+val isJitPack = env("JITPACK") == "true"
+val enableNativeTargets = !isJitPack
+val publicationGroup = if (isJitPack) env("GROUP") ?: "com.github.sealdice" else releaseGroup
+val publicationArtifact = if (isJitPack) env("ARTIFACT") ?: project.name else project.name
+val publicationVersion = if (isJitPack) env("VERSION") ?: releaseVersion else releaseVersion
+
+group = publicationGroup
+version = publicationVersion
 
 repositories {
     mavenCentral()
@@ -21,12 +31,14 @@ fun libraryPath(target: String) = interopDir.resolve("lib/${interopTargetDirecto
 
 kotlin {
     jvm()
-    mingwX64()
-    linuxX64()
-    linuxArm64()
-    androidNativeArm64()
-    macosX64()
-    macosArm64()
+    if (enableNativeTargets) {
+        mingwX64()
+        linuxX64()
+        linuxArm64()
+        androidNativeArm64()
+        macosX64()
+        macosArm64()
+    }
 
     sourceSets {
         commonMain.dependencies {
@@ -40,35 +52,39 @@ kotlin {
         }
     }
 
-    targets.withType<KotlinNativeTarget> {
-        val main by compilations.getting
-        val nativeInterop by main.cinterops.creating {
-            definitionFile.set(project.file("src/nativeInterop/interop.def"))
-            extraOpts("-libraryPath", libraryPath(targetName))
+    if (enableNativeTargets) {
+        targets.withType<KotlinNativeTarget> {
+            val main by compilations.getting
+            val nativeInterop by main.cinterops.creating {
+                definitionFile.set(project.file("src/nativeInterop/interop.def"))
+                extraOpts("-libraryPath", libraryPath(targetName))
+            }
+        }
+
+        mingwX64 {
+            binaries.all {
+                linkerOpts(
+                    "-Wl,-Bstatic",
+                    "-lstdc++",
+                    "-lgcc",
+                    "-Wl,-Bdynamic"
+                )
+            }
         }
     }
 
-    mingwX64 {
-        binaries.all {
-            linkerOpts(
-                "-Wl,-Bstatic",
-                "-lstdc++",
-                "-lgcc",
-                "-Wl,-Bdynamic"
-            )
-        }
-    }
-
-    jvmToolchain(25)
+    jvmToolchain(if (isJitPack) 21 else 25)
 }
 
 mavenPublishing {
-    publishToMavenCentral()
-    signAllPublications()
+    if (!isJitPack) {
+        publishToMavenCentral()
+        signAllPublications()
+    }
     coordinates(
-        groupId = project.group.toString(),
-        artifactId = project.name,
-        version = project.version.toString()
+        groupId = publicationGroup,
+        artifactId = publicationArtifact,
+        version = publicationVersion
     )
 
     pom {
