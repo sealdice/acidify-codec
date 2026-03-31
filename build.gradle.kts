@@ -2,8 +2,8 @@ import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 
 plugins {
-    kotlin("multiplatform") version "2.3.0"
-    id("com.vanniktech.maven.publish") version "0.36.0"
+    kotlin("multiplatform") version "2.1.21"
+    id("com.vanniktech.maven.publish") version "0.35.0"
 }
 
 fun env(name: String) = providers.environmentVariable(name).orNull
@@ -11,7 +11,8 @@ fun env(name: String) = providers.environmentVariable(name).orNull
 val releaseGroup = "org.ntqqrev"
 val releaseVersion = "0.1.0"
 val isJitPack = env("JITPACK") == "true"
-val enableNativeTargets = !isJitPack
+val enableJvmTarget = !isJitPack
+val enableNativeTargets = true
 val publicationGroup = if (isJitPack) env("GROUP") ?: "com.github.sealdice" else releaseGroup
 val publicationArtifact = if (isJitPack) env("ARTIFACT") ?: project.name else project.name
 val publicationVersion = if (isJitPack) env("VERSION") ?: releaseVersion else releaseVersion
@@ -30,8 +31,12 @@ val interopTargetDirectoryNames = mapOf(
 fun libraryPath(target: String) = interopDir.resolve("lib/${interopTargetDirectoryNames[target] ?: target}")
 
 kotlin {
-    jvm()
-    if (enableNativeTargets) {
+    if (enableJvmTarget) {
+        jvm()
+    }
+    if (isJitPack) {
+        androidNativeArm64()
+    } else if (enableNativeTargets) {
         mingwX64()
         linuxX64()
         linuxArm64()
@@ -47,8 +52,10 @@ kotlin {
         commonTest.dependencies {
             implementation(kotlin("test"))
         }
-        jvmMain.dependencies {
-            implementation("net.java.dev.jna:jna:5.18.1")
+        if (enableJvmTarget) {
+            jvmMain.dependencies {
+                implementation("net.java.dev.jna:jna:5.18.1")
+            }
         }
     }
 
@@ -61,19 +68,23 @@ kotlin {
             }
         }
 
-        mingwX64 {
-            binaries.all {
-                linkerOpts(
-                    "-Wl,-Bstatic",
-                    "-lstdc++",
-                    "-lgcc",
-                    "-Wl,-Bdynamic"
-                )
+        if (!isJitPack) {
+            mingwX64 {
+                binaries.all {
+                    linkerOpts(
+                        "-Wl,-Bstatic",
+                        "-lstdc++",
+                        "-lgcc",
+                        "-Wl,-Bdynamic"
+                    )
+                }
             }
         }
     }
 
-    jvmToolchain(if (isJitPack) 21 else 25)
+    if (enableJvmTarget) {
+        jvmToolchain(25)
+    }
 }
 
 mavenPublishing {
